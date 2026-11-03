@@ -1,13 +1,13 @@
 # COMMONPAY
 
-**Goldx Technologies**
+AI-powered Financial Command Centre and API-first financial infrastructure platform.
 
-An AI-powered Financial Command Centre and API-first financial infrastructure platform.
+**Product principle:**
 
-Product principle:
 Your money. Your control. One command centre.
 
-Core architecture:
+## Core Architecture
+
 - Personal and Business financial environments
 - Independent financial ledger
 - Payment orchestration
@@ -16,6 +16,8 @@ Core architecture:
 - Developer APIs and SDKs
 - AI-powered financial intelligence
 - Long-term independently licensed customer wallets
+
+## Financial Authority
 
 AI provides intelligence. Deterministic financial services provide authority.
 
