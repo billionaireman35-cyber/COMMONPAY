@@ -61,6 +61,14 @@ Table("wallet_accounts", metadata,
       Column("reported_at", Float))
 
 
+def _pg_driver():
+    try:
+        import psycopg2  # noqa: F401
+        return "psycopg2"
+    except ImportError:
+        return "pg8000"
+
+
 def _resolve_url(path=None):
     if path in (None, ""):
         url = os.environ.get("DATABASE_URL")
@@ -68,7 +76,7 @@ def _resolve_url(path=None):
             if url.startswith("postgres://"):
                 url = "postgresql://" + url[len("postgres://"):]
             if url.startswith("postgresql://"):
-                url = "postgresql+psycopg2://" + url[len("postgresql://"):]
+                url = f"postgresql+{_pg_driver()}://" + url[len("postgresql://"):]
             return url
         path = os.environ.get("COMMONPAY_MIRROR_DB", "commonpay_mirror.db")
     if "://" in path:
@@ -99,6 +107,11 @@ class Store:
             kw["connect_args"] = {"check_same_thread": False}
             if url == "sqlite://":
                 kw["poolclass"] = StaticPool
+        if url.startswith("postgresql+pg8000"):
+            from sqlalchemy.engine import make_url
+            u = make_url(url)
+            url = u.set(query={k: v for k, v in u.query.items() if k not in ("sslmode", "channel_binding")})
+            kw["connect_args"] = {"ssl_context": True}
         self.engine = create_engine(url, **kw)
         metadata.create_all(self.engine)
 

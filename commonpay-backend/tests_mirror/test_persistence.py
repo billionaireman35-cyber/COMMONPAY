@@ -20,6 +20,7 @@ def test_production_requires_database_url(monkeypatch):
         Store()
 
 def test_render_url_normalised(monkeypatch):
+    monkeypatch.setattr("mirror.store._pg_driver", lambda: "psycopg2")
     monkeypatch.setenv("DATABASE_URL", "postgres://u:p@h:5432/db")
     assert _resolve_url(None) == "postgresql+psycopg2://u:p@h:5432/db"
     monkeypatch.setenv("DATABASE_URL", "postgresql://u:p@h/db")
