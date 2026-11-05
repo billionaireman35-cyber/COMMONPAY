@@ -4,8 +4,18 @@ from app.services.webhook_security import (
     verify_paystack_signature,
     verify_flutterwave_signature,
 )
+from mirror.runtime import get_store
+from mirror.webhook_ingest import ingest
 
 router = APIRouter(prefix="/webhooks", tags=["Provider Webhooks"])
+
+
+def _record(provider: str, raw_body: bytes) -> None:
+    try:
+        ingest(get_store(), provider, raw_body)
+    except Exception:
+        # Storage failed: 5xx makes the provider retry delivery.
+        raise HTTPException(status_code=503, detail="Event storage unavailable.")
 
 
 @router.post("/paystack")
@@ -18,9 +28,9 @@ async def paystack_webhook(
     if not verify_paystack_signature(raw_body, x_paystack_signature):
         raise HTTPException(status_code=401, detail="Invalid signature.")
 
-    # Intentionally no financial posting here.
-    # Production processing requires durable event storage,
-    # provider verification, idempotency and reconciliation.
+    _record("paystack", raw_body)
+    # Recorded as a signal only. Confirmation requires provider verification
+    # and reconciliation (python -m mirror.sweep).
     return {"received": True, "processed": False}
 
 
@@ -36,4 +46,5 @@ async def flutterwave_webhook(
     if not verify_flutterwave_signature(raw_body, signature):
         raise HTTPException(status_code=401, detail="Invalid signature.")
 
+    _record("flutterwave", raw_body)
     return {"received": True, "processed": False}

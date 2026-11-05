@@ -36,7 +36,7 @@ class Settings:
         item.strip()
         for item in os.getenv(
             "FRONTEND_ORIGINS",
-            "http://localhost:5173"
+            "http://localhost:5174"
         ).split(",")
         if item.strip()
     )
