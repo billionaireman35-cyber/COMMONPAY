@@ -20,3 +20,5 @@ coverage/
 
 # Local backups
 .backups/
+*.bak
+*.backup-*
