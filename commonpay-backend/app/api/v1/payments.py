@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 
 from app.api.v1.schemas import CheckoutRequest
 from app.core.security import require_api_key
@@ -12,7 +12,10 @@ router = APIRouter(
 
 
 @router.post("/checkout")
-async def checkout(request: CheckoutRequest):
+async def checkout(
+    request: CheckoutRequest,
+    idempotency_key: str | None = Header(default=None, max_length=255),
+):
     try:
         return await create_checkout(
             amount=request.amount,
@@ -21,6 +24,7 @@ async def checkout(request: CheckoutRequest):
             provider_name=request.provider,
             description=request.description,
             callback_url=request.callback_url,
+            idempotency_key=idempotency_key,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))

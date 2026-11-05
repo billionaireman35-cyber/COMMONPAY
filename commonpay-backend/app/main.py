@@ -27,7 +27,7 @@ app.add_middleware(
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type", "X-CommonPay-API-Key", "X-Paystack-Signature",
-                   "Flutterwave-Signature", "Verif-Hash"],
+                   "Flutterwave-Signature", "Verif-Hash", "Idempotency-Key"],
 )
 
 app.include_router(health.router)

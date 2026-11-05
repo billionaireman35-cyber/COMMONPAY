@@ -1,4 +1,4 @@
-import os, time
+import os
 
 class WalletDisabledError(RuntimeError):
     pass
@@ -21,20 +21,14 @@ class WalletService:
         if self.issuer is None:
             raise RuntimeError("No provider issuer configured")
         provider, ref = self.issuer(customer_id=customer_id)
-        self.store.conn.execute(
-            "INSERT OR IGNORE INTO wallet_accounts(customer_id,provider,account_ref) VALUES(?,?,?)",
-            (customer_id, provider, ref))
-        self.store.conn.commit()
+        self.store.add_wallet(customer_id, provider, ref)
         return provider, ref
 
     def record_reported_balance(self, customer_id, balance_minor):
         self._guard()
-        self.store.conn.execute(
-            "UPDATE wallet_accounts SET reported_balance_minor=?, reported_at=? WHERE customer_id=?",
-            (balance_minor, time.time(), customer_id))
-        self.store.conn.commit()
+        self.store.set_wallet_balance(customer_id, balance_minor)
 
     def reported_balance(self, customer_id):
         self._guard()
-        r = self.store._one("SELECT reported_balance_minor FROM wallet_accounts WHERE customer_id=?", (customer_id,))
-        return r["reported_balance_minor"] if r else None
+        r = self.store.get_wallet(customer_id)
+        return r["reported_balance_minor"] if r is not None else None

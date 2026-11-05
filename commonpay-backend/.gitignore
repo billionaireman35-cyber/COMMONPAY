@@ -1,1 +1,7 @@
 commonpay_mirror.db
+.env
+.env.*
+!.env.example
+neon.ts
+.neon
+node_modules

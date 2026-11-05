@@ -6,8 +6,6 @@ _store = None
 def get_store():
     global _store
     if _store is None:
-        path = os.environ.get("COMMONPAY_MIRROR_DB")
-        if path is None and os.environ.get("PYTEST_CURRENT_TEST"):
-            path = ":memory:"
-        _store = Store(path)
+        # Under pytest always in-memory; DATABASE_URL is never consulted.
+        _store = Store(":memory:" if os.environ.get("PYTEST_CURRENT_TEST") else None)
     return _store
