@@ -1,4 +1,6 @@
 import { useState } from "react";
+import CloseTheDay from "./features/close/CloseTheDay";
+import Payouts from "./features/payouts/Payouts";
 import {
   Activity,
   ArrowDownLeft,
@@ -12,23 +14,35 @@ import {
   Command,
   CreditCard,
   LayoutDashboard,
+  Lock,
   Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
   Plus,
   Search,
+  Send,
   Settings,
   ShieldCheck,
   Wallet,
   X,
 } from "lucide-react";
 
-const navigation = [
+const personalNav = [
   { label: "Overview", icon: LayoutDashboard },
   { label: "Accounts", icon: Wallet },
   { label: "Payments", icon: ArrowUpRight },
   { label: "Transfers", icon: ArrowLeftRight },
   { label: "Exchange", icon: Activity },
-  { label: "Treasury", icon: Building2 },
   { label: "Intelligence", icon: BrainCircuit },
+];
+
+const businessNav = [
+  { label: "Overview", icon: LayoutDashboard },
+  { label: "Close the day", icon: Lock },
+  { label: "Salary payouts", icon: Send },
+  { label: "Payments", icon: ArrowUpRight },
+  { label: "Reconciliation", icon: ShieldCheck },
+  { label: "Treasury", icon: Building2 },
   { label: "Developers", icon: Command },
 ];
 
@@ -36,9 +50,16 @@ function App() {
   const [active, setActive] = useState("Overview");
   const [environment, setEnvironment] = useState("Personal");
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const nav = environment === "Business" ? businessNav : personalNav;
+
+  function switchEnvironment() {
+    setEnvironment(environment === "Personal" ? "Business" : "Personal");
+    setActive("Overview");
+  }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${collapsed ? "is-collapsed" : ""}`}>
       <aside className={`sidebar ${mobileOpen ? "sidebar-open" : ""}`}>
         <div className="brand">
           <div className="brand-mark">C</div>
@@ -53,9 +74,7 @@ function App() {
 
         <div className="environment-switch">
           <span>WORKSPACE</span>
-          <button onClick={() => setEnvironment(
-            environment === "Personal" ? "Business" : "Personal"
-          )}>
+          <button onClick={switchEnvironment}>
             {environment === "Personal" ? <Wallet size={17} /> : <Building2 size={17} />}
             {environment}
             <ChevronDown size={15} />
@@ -64,7 +83,7 @@ function App() {
 
         <div className="nav-label">YOUR FINANCES</div>
         <nav>
-          {navigation.map(({ label, icon: Icon }) => (
+          {nav.map(({ label, icon: Icon }) => (
             <button
               key={label}
               className={`nav-item ${active === label ? "active" : ""}`}
@@ -110,6 +129,9 @@ function App() {
           <button className="mobile-menu" onClick={() => setMobileOpen(true)}>
             <Menu size={21} />
           </button>
+          <button className="collapse-btn" onClick={() => setCollapsed(!collapsed)} aria-label="Toggle sidebar">
+            {collapsed ? <PanelLeftOpen size={19} /> : <PanelLeftClose size={19} />}
+          </button>
           <div className="breadcrumb">
             <span>CommonPay</span><span>/</span><strong>{active}</strong>
           </div>
@@ -125,13 +147,17 @@ function App() {
         </header>
 
         <div className="page-content">
-          {active === "Overview" ? (
+          {active === "Close the day" ? (
+            <CloseTheDay />
+          ) : active === "Salary payouts" ? (
+            <Payouts />
+          ) : active === "Overview" ? (
             <>
               <section className="welcome-row">
                 <div>
-                  <div className="eyebrow">FINANCIAL OVERVIEW</div>
-                  <h1>Your financial command centre.</h1>
-                  <p>One clear view of your financial world.</p>
+                  <div className="eyebrow">{environment === "Business" ? "BUSINESS OVERVIEW" : "FINANCIAL OVERVIEW"}</div>
+                  <h1>{environment === "Business" ? "Your business command centre." : "Your financial command centre."}</h1>
+                  <p>{environment === "Business" ? "Your sales, confirmations and settlements in one view." : "One clear view of your financial world."}</p>
                 </div>
                 <button className="primary-button">
                   <Plus size={17} /> Add account
@@ -150,21 +176,21 @@ function App() {
               <section className="summary-grid">
                 <article className="summary-card">
                   <div className="card-heading">
-                    <span>Total balance</span><Wallet size={18} />
+                    <span>{environment === "Business" ? "Sales today" : "Total balance"}</span><Wallet size={18} />
                   </div>
                   <div className="empty-value">—</div>
                   <p>No financial accounts connected</p>
                 </article>
                 <article className="summary-card">
                   <div className="card-heading">
-                    <span>Money received</span><ArrowDownLeft size={18} />
+                    <span>{environment === "Business" ? "Confirmed" : "Money received"}</span><ArrowDownLeft size={18} />
                   </div>
                   <div className="empty-value">—</div>
                   <p>Transaction history will appear here</p>
                 </article>
                 <article className="summary-card">
                   <div className="card-heading">
-                    <span>Money sent</span><ArrowUpRight size={18} />
+                    <span>{environment === "Business" ? "Still pending" : "Money sent"}</span><ArrowUpRight size={18} />
                   </div>
                   <div className="empty-value">—</div>
                   <p>Transaction history will appear here</p>
