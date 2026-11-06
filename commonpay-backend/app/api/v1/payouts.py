@@ -14,9 +14,11 @@ router = APIRouter(
 
 
 def get_engine():
-    # Replaced by the real engine once a live rail adapter exists.
-    # Until then nothing can move money through this API.
-    raise HTTPException(status_code=503, detail="No payout rails are configured yet.")
+    from mirror.payout_runtime import get_live_engine
+    eng = get_live_engine()
+    if eng is None:
+        raise HTTPException(status_code=503, detail="Payouts are not enabled.")
+    return eng
 
 
 class RowIn(BaseModel):

@@ -86,3 +86,11 @@ class PaystackPayoutRail(PayoutRail):
         if s in ("failed", "reversed"):
             return "failed"
         return "pending"  # pending, otp, received, etc.
+
+    def balance_minor(self, currency="NGN"):
+        r = self._client.get("/balance", headers=self._headers())
+        r.raise_for_status()
+        for b in r.json().get("data") or []:
+            if b.get("currency") == currency:
+                return int(b["balance"])
+        return 0
