@@ -2,16 +2,16 @@ import hashlib
 import re
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from app.core.security import require_api_key
+from app.core.auth import check_txn_pin, get_auth_store, require_user
 from mirror.payout import AccountNotFound, InsufficientFunds
 
 router = APIRouter(
     prefix="/payouts",
     tags=["Payouts"],
-    dependencies=[Depends(require_api_key)],
+    dependencies=[Depends(require_user)],
 )
 
 
@@ -49,9 +49,10 @@ def _fingerprint(rows):
     return hashlib.sha256("\n".join(parts).encode()).hexdigest()
 
 
-def _batch(engine, key):
+def _mine(engine, key, user):
+    """The batch, only if it belongs to this user. Anyone else's looks like 'not found'."""
     b = engine.store.get_batch(key)
-    if b is None:
+    if b is None or engine.store.owner_of(key) != user["uid"]:
         raise HTTPException(status_code=404, detail="batch not found")
     return b
 
@@ -59,31 +60,38 @@ def _batch(engine, key):
 # Plain defs: FastAPI runs them in a threadpool, so blocking DB/provider calls
 # do not stall the event loop.
 @router.post("/batches")
-def create_batch(body: BatchIn, engine=Depends(get_engine)):
+def create_batch(body: BatchIn, engine=Depends(get_engine), user=Depends(require_user)):
     store = engine.store
+    uid = user["uid"]
     fp = _fingerprint(body.rows)
     existing = store.get_batch(body.batch_key)
     if existing is not None:
+        if store.owner_of(body.batch_key) != uid:
+            raise HTTPException(status_code=409, detail="batch_key already used")
         old = store.fingerprint_of(body.batch_key)
         if (old is not None and old != fp) or (
                 old is None and len(store.items(existing["id"])) != len(body.rows)):
             raise HTTPException(status_code=409, detail="batch_key already used with different rows")
     elif not body.allow_repeat:
-        dupes = store.sent_batches_with(fp, body.batch_key)
+        dupes = store.sent_batches_for_owner(fp, body.batch_key, uid)
         if dupes:
             raise HTTPException(
                 status_code=409,
                 detail=f"duplicate-list: This exact list (same accounts and amounts) was already sent "
                        f"in batch {dupes[0]}. Uploading it again would pay everyone twice.")
     engine.load(body.batch_key, [r.model_dump() for r in body.rows], body.currency)
+    store.set_owner(body.batch_key, uid)
     store.add_fingerprint(fp, body.batch_key)
     return {"batch_key": body.batch_key, "created": existing is None,
             "summary": engine.summary(body.batch_key)}
 
 
 @router.post("/batches/{key}/run")
-def run_batch(key: str, preferred: str | None = None, engine=Depends(get_engine)):
-    _batch(engine, key)
+def run_batch(key: str, preferred: str | None = None,
+              x_transaction_pin: str | None = Header(default=None),
+              engine=Depends(get_engine), user=Depends(require_user), auth=Depends(get_auth_store)):
+    _mine(engine, key, user)
+    check_txn_pin(auth, user, x_transaction_pin)
     try:
         return {"summary": engine.run(key, preferred)}
     except InsufficientFunds as e:
@@ -91,21 +99,21 @@ def run_batch(key: str, preferred: str | None = None, engine=Depends(get_engine)
 
 
 @router.post("/batches/{key}/refresh")
-def refresh_batch(key: str, engine=Depends(get_engine)):
-    _batch(engine, key)
+def refresh_batch(key: str, engine=Depends(get_engine), user=Depends(require_user)):
+    _mine(engine, key, user)
     return {"summary": engine.refresh(key)}
 
 
 @router.get("/batches/{key}")
-def get_batch(key: str, engine=Depends(get_engine)):
-    b = _batch(engine, key)
+def get_batch(key: str, engine=Depends(get_engine), user=Depends(require_user)):
+    b = _mine(engine, key, user)
     return {"batch_key": key, "currency": b["currency"],
             "summary": engine.summary(key), "items": engine.report(key)}
 
 
 @router.post("/batches/{key}/verify")
-def verify_batch(key: str, engine=Depends(get_engine)):
-    _batch(engine, key)
+def verify_batch(key: str, engine=Depends(get_engine), user=Depends(require_user)):
+    _mine(engine, key, user)
     engine.verify_names(key)  # resolves names only; never sends
     return {"summary": engine.summary(key), "items": engine.report(key)}
 

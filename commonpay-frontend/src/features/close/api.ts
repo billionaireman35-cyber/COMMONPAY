@@ -1,5 +1,5 @@
+import { authHeader, expireSession } from "../../lib/auth";
 const BASE = ((import.meta.env.VITE_API_URL as string | undefined) ?? "").replace(/\/$/, "");
-const KEY = (import.meta.env.VITE_COMMONPAY_API_KEY as string | undefined) ?? "";
 const PREFIX = "/api/v1";
 
 export type Totals = {
@@ -34,7 +34,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: {
       "Content-Type": "application/json",
-      "X-CommonPay-API-Key": KEY,
+      ...authHeader(),
       ...(init?.headers ?? {}),
     },
   });
@@ -46,6 +46,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     } catch {
       /* keep default message */
     }
+    if (res.status === 401) expireSession();
     throw new Error(detail);
   }
   return res.json() as Promise<T>;

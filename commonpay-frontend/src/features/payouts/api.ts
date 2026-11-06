@@ -1,5 +1,5 @@
+import { askTxnPin, authHeader, expireSession } from "../../lib/auth";
 const BASE = ((import.meta.env.VITE_API_URL as string | undefined) ?? "").replace(/\/$/, "");
-const KEY = (import.meta.env.VITE_COMMONPAY_API_KEY as string | undefined) ?? "";
 const PREFIX = "/api/v1/payouts";
 
 export type InRow = { name: string; account_number: string; bank_code: string; amount: string };
@@ -25,7 +25,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: {
       "Content-Type": "application/json",
-      "X-CommonPay-API-Key": KEY,
+      ...authHeader(),
       ...(init?.headers ?? {}),
     },
   });
@@ -38,6 +38,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     } catch {
       /* keep default message */
     }
+    if (res.status === 401) expireSession();
     throw new Error(detail);
   }
   return res.json() as Promise<T>;
@@ -50,7 +51,18 @@ export const api = {
   createBatch: (batch_key: string, rows: InRow[], allow_repeat = false) =>
     post<{ created: boolean }>("/batches", { batch_key, currency: "NGN", rows, allow_repeat }),
   verify: (key: string) => post<Detail>(`/batches/${key}/verify`),
-  run: (key: string) => post<unknown>(`/batches/${key}/run`),
+  run: async (key: string) => {
+    const pin = await askTxnPin();
+    try {
+      return await request<unknown>(`/batches/${key}/run`, {
+        method: "POST",
+        headers: { "X-Transaction-Pin": pin },
+      });
+    } catch (e) {
+      if (e instanceof Error) e.message = e.message.replace(/^txn-pin:\s*/, "");
+      throw e;
+    }
+  },
   refresh: (key: string) => post<unknown>(`/batches/${key}/refresh`),
   get: (key: string) => request<Detail>(`/batches/${key}`),
 };

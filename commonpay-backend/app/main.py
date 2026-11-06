@@ -11,6 +11,8 @@ from app.api.v1 import (
     reconciliation,
     locks,
     payouts,
+    auth,
+    accounts,
 )
 
 app = FastAPI(
@@ -30,7 +32,7 @@ app.add_middleware(
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type", "X-CommonPay-API-Key", "X-Paystack-Signature",
-                   "Flutterwave-Signature", "Verif-Hash", "Idempotency-Key"],
+                   "Flutterwave-Signature", "Verif-Hash", "Idempotency-Key", "Authorization", "X-Transaction-Pin"],
 )
 
 app.include_router(health.router)
@@ -41,6 +43,8 @@ app.include_router(developers.router, prefix=settings.api_prefix)
 app.include_router(reconciliation.router, prefix=settings.api_prefix)
 app.include_router(locks.router, prefix=settings.api_prefix)
 app.include_router(payouts.router, prefix=settings.api_prefix)
+app.include_router(auth.router, prefix=settings.api_prefix)
+app.include_router(accounts.router, prefix=settings.api_prefix)
 
 
 @app.get("/")

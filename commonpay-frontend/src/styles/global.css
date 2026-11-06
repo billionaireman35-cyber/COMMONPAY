@@ -253,3 +253,10 @@ h1 { font: 800 29px Manrope; letter-spacing: -1.1px; margin: 8px 0 7px; }
 .fm-chat { display: grid; gap: 14px; margin-top: 14px; }
 .fm-q { font-weight: 600; font-size: 13px; margin-bottom: 5px; }
 .fm-a { white-space: pre-wrap; font-size: 13.5px; line-height: 1.5; background: #f5f8f7; border-radius: 9px; padding: 12px; }
+
+/* Hint text inside inputs: keep it small and unspaced (PIN fields space out typed digits only). */
+input::placeholder {
+  letter-spacing: 0 !important;
+  font-size: 15px !important;
+  opacity: 0.6;
+}

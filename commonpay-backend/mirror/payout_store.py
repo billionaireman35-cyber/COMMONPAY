@@ -31,6 +31,11 @@ Table("payout_fingerprints", metadata,
       Column("batch_key", String(255), nullable=False, unique=True),
       Column("created_at", Float, nullable=False))
 
+Table("batch_owners", metadata,
+      Column("batch_key", String(255), primary_key=True),
+      Column("user_uid", String(40), nullable=False, index=True),
+      Column("created_at", Float, nullable=False))
+
 # Strict state machine. confirmed/failed/rejected are terminal.
 # unknown is only ever resolved by asking the provider, never by re-sending.
 ALLOWED = {
@@ -101,4 +106,24 @@ class PayoutStore(Store):
             "WHERE f.fingerprint=:f AND f.batch_key<>:k "
             "AND i.status IN ('sending','submitted','confirmed','unknown') "
             "GROUP BY f.batch_key", f=fp, k=exclude_key)
+        return [r["batch_key"] for r in rows]
+
+    def set_owner(self, batch_key, user_uid):
+        self._exec("INSERT INTO batch_owners(batch_key,user_uid,created_at) VALUES(:b,:u,:t) "
+                   "ON CONFLICT DO NOTHING", b=batch_key, u=user_uid, t=time.time())
+
+    def owner_of(self, batch_key):
+        r = self._one("SELECT user_uid FROM batch_owners WHERE batch_key=:b", b=batch_key)
+        return r["user_uid"] if r else None
+
+    def sent_batches_for_owner(self, fp, exclude_key, user_uid):
+        """This user's other batches with the exact same list where money may have moved."""
+        rows = self._all(
+            "SELECT f.batch_key FROM payout_fingerprints f "
+            "JOIN batch_owners o ON o.batch_key=f.batch_key AND o.user_uid=:u "
+            "JOIN payout_batches b ON b.batch_key=f.batch_key "
+            "JOIN payout_items i ON i.batch_id=b.id "
+            "WHERE f.fingerprint=:f AND f.batch_key<>:k "
+            "AND i.status IN ('sending','submitted','confirmed','unknown') "
+            "GROUP BY f.batch_key", f=fp, k=exclude_key, u=user_uid)
         return [r["batch_key"] for r in rows]

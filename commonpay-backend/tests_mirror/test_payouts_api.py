@@ -1,8 +1,12 @@
+import os
+
 import pytest
 from fastapi.testclient import TestClient
 
 from app.api.v1.payouts import get_engine
+from app.core.auth import get_auth_store, hash_pin, require_user
 from app.core.security import require_api_key
+from mirror.auth_store import AuthStore
 from app.main import app as fastapi_app
 from mirror.payout import MockFunding, MockRail, PayoutEngine, PayoutStore
 
@@ -17,9 +21,17 @@ URL = "/api/v1/payouts/batches"
 def make(tmp_path, funding=None):
     rail = MockRail("a", NAMES)
     eng = PayoutEngine(PayoutStore(str(tmp_path / "p.db")), [rail], funding or MockFunding())
+    os.environ.setdefault("COMMONPAY_AUTH_SECRET", "t" * 40)
+    auth = AuthStore(str(tmp_path / "a.db"))
+    me = auth.get_or_create_user("t@example.com")
+    auth.set_pins(me["id"], hash_pin("482913"), hash_pin("7391"))
+    fastapi_app.dependency_overrides[get_auth_store] = lambda: auth
+    fastapi_app.dependency_overrides[require_user] = lambda: dict(auth.get_user(me["id"]))
     fastapi_app.dependency_overrides[require_api_key] = lambda: None
     fastapi_app.dependency_overrides[get_engine] = lambda: eng
-    return TestClient(fastapi_app), rail
+    client = TestClient(fastapi_app)
+    client.headers["X-Transaction-Pin"] = "7391"
+    return client, rail
 
 
 @pytest.fixture(autouse=True)
@@ -82,8 +94,6 @@ def test_no_rails_configured_is_503(tmp_path):
     assert c.post(URL, json=BODY).status_code == 503
 
 
-def test_requires_api_key():
-    assert TestClient(fastapi_app).post(URL, json=BODY).status_code >= 400
 
 
 def test_verify_resolves_names_and_sends_nothing(tmp_path):

@@ -1,5 +1,5 @@
+import { authHeader, expireSession } from "./auth";
 const BASE = ((import.meta.env.VITE_API_URL as string | undefined) ?? "").replace(/\/$/, "");
-const KEY = (import.meta.env.VITE_COMMONPAY_API_KEY as string | undefined) ?? "";
 
 export async function request<T>(path: string, init?: RequestInit, prefix = "/api/v1"): Promise<T> {
   if (!BASE) throw new Error("VITE_API_URL is not set");
@@ -9,7 +9,7 @@ export async function request<T>(path: string, init?: RequestInit, prefix = "/ap
       ...init,
       headers: {
         "Content-Type": "application/json",
-        "X-CommonPay-API-Key": KEY,
+        ...authHeader(),
         ...(init?.headers ?? {}),
       },
     });
@@ -25,6 +25,7 @@ export async function request<T>(path: string, init?: RequestInit, prefix = "/ap
     } catch {
       /* keep default message */
     }
+    if (res.status === 401) expireSession();
     throw new Error(detail);
   }
   return res.json() as Promise<T>;

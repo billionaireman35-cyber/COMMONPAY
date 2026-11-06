@@ -7,6 +7,7 @@ import Checkout from "./features/core/Checkout";
 import Intelligence from "./features/core/Intelligence";
 import Developers from "./features/core/Developers";
 import Transfers from "./features/core/Transfers";
+import Accounts from "./features/accounts/Accounts";
 import {
   Activity,
   ArrowDownLeft,
@@ -165,6 +166,8 @@ function App() {
             <Intelligence />
           ) : active === "Developers" ? (
             <Developers />
+          ) : active === "Accounts" ? (
+            <Accounts />
           ) : active === "Transfers" ? (
             <Transfers />
           ) : active === "Overview" ? (
