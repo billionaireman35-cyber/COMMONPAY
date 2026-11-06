@@ -59,7 +59,7 @@ export default function Transfers() {
     setBusy(true);
     setError("");
     try {
-      await api.createBatch(key, [{ name, account_number: account.trim(), bank_code: bank, amount }]);
+      await api.createBatch(key, [{ name, account_number: account.trim(), bank_code: bank, amount }], true);
       await api.run(key);
     } catch (e) {
       setError(errText(e));

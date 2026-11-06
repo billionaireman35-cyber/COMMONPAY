@@ -47,8 +47,8 @@ const post = <T,>(path: string, body?: unknown) =>
   request<T>(path, { method: "POST", body: body === undefined ? undefined : JSON.stringify(body) });
 
 export const api = {
-  createBatch: (batch_key: string, rows: InRow[]) =>
-    post<{ created: boolean }>("/batches", { batch_key, currency: "NGN", rows }),
+  createBatch: (batch_key: string, rows: InRow[], allow_repeat = false) =>
+    post<{ created: boolean }>("/batches", { batch_key, currency: "NGN", rows, allow_repeat }),
   verify: (key: string) => post<Detail>(`/batches/${key}/verify`),
   run: (key: string) => post<unknown>(`/batches/${key}/run`),
   refresh: (key: string) => post<unknown>(`/batches/${key}/refresh`),

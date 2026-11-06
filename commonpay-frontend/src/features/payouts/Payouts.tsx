@@ -97,6 +97,7 @@ export default function Payouts() {
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState("");
+  const [dup, setDup] = useState("");
 
   const hasSubmitted = items.some((i) => i.status === "submitted");
 
@@ -119,6 +120,7 @@ export default function Payouts() {
     setItems([]);
     setStep("pick");
     setConfirming(false);
+    setDup("");
     const reader = new FileReader();
     reader.onload = () => {
       const r = toRows(String(reader.result ?? ""));
@@ -130,15 +132,18 @@ export default function Payouts() {
     reader.readAsText(f);
   }
 
-  async function verify() {
+  async function verify(allowRepeat = false) {
     setBusy(true);
     setError("");
+    setDup("");
     try {
-      await api.createBatch(batchKey, rows);
+      await api.createBatch(batchKey, rows, allowRepeat);
       setItems((await api.verify(batchKey)).items);
       setStep("review");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not verify");
+      const msg = e instanceof Error ? e.message : "Could not verify";
+      if (msg.startsWith("duplicate-list:")) setDup(msg.slice("duplicate-list:".length).trim());
+      else setError(msg);
     } finally {
       setBusy(false);
     }
@@ -182,6 +187,15 @@ export default function Payouts() {
       </section>
 
       {error && <div className="po-error">{error}</div>}
+      {dup && (
+        <div className="po-row po-confirm">
+          <span><strong>Already sent.</strong> {dup}</span>
+          <span>
+            <button className="secondary-button" onClick={() => setDup("")}>Cancel</button>{" "}
+            <button className="primary-button" disabled={busy} onClick={() => verify(true)}>Upload again anyway</button>
+          </span>
+        </div>
+      )}
 
       <article className="panel">
         <div className="panel-heading">
@@ -197,7 +211,7 @@ export default function Payouts() {
         {rows.length > 0 && step === "pick" && (
           <div className="po-row">
             <span>{rows.length} recipients, {naira(fileMinor)} in total</span>
-            <button className="primary-button" disabled={busy} onClick={verify}>
+            <button className="primary-button" disabled={busy} onClick={() => verify()}>
               <ShieldCheck size={17} /> {busy ? "Checking names..." : "Verify names"}
             </button>
           </div>

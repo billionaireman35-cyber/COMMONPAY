@@ -1,3 +1,4 @@
+import hashlib
 import re
 from decimal import Decimal
 
@@ -33,6 +34,19 @@ class BatchIn(BaseModel):
     batch_key: str = Field(min_length=1, max_length=200, pattern=r"^[A-Za-z0-9._-]+$")
     currency: str = Field(default="NGN", max_length=8)
     rows: list[RowIn] = Field(min_length=1, max_length=5000)
+    allow_repeat: bool = False
+
+
+def _fingerprint(rows):
+    parts = []
+    for r in rows:
+        try:
+            amt = format(r.amount.quantize(Decimal("0.01")), "f")
+        except Exception:
+            amt = str(r.amount)
+        parts.append(f"{r.account_number.strip()}|{r.bank_code.strip()}|{amt}")
+    parts.sort()
+    return hashlib.sha256("\n".join(parts).encode()).hexdigest()
 
 
 def _batch(engine, key):
@@ -46,10 +60,23 @@ def _batch(engine, key):
 # do not stall the event loop.
 @router.post("/batches")
 def create_batch(body: BatchIn, engine=Depends(get_engine)):
-    existing = engine.store.get_batch(body.batch_key)
-    if existing is not None and len(engine.store.items(existing["id"])) != len(body.rows):
-        raise HTTPException(status_code=409, detail="batch_key already used with different rows")
+    store = engine.store
+    fp = _fingerprint(body.rows)
+    existing = store.get_batch(body.batch_key)
+    if existing is not None:
+        old = store.fingerprint_of(body.batch_key)
+        if (old is not None and old != fp) or (
+                old is None and len(store.items(existing["id"])) != len(body.rows)):
+            raise HTTPException(status_code=409, detail="batch_key already used with different rows")
+    elif not body.allow_repeat:
+        dupes = store.sent_batches_with(fp, body.batch_key)
+        if dupes:
+            raise HTTPException(
+                status_code=409,
+                detail=f"duplicate-list: This exact list (same accounts and amounts) was already sent "
+                       f"in batch {dupes[0]}. Uploading it again would pay everyone twice.")
     engine.load(body.batch_key, [r.model_dump() for r in body.rows], body.currency)
+    store.add_fingerprint(fp, body.batch_key)
     return {"batch_key": body.batch_key, "created": existing is None,
             "summary": engine.summary(body.batch_key)}
 

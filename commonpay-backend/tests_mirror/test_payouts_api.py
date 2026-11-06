@@ -111,3 +111,35 @@ def test_resolve_and_banks(tmp_path):
     assert c.get(u, params={"account_number": "0123456799", "bank_code": "058"}).status_code == 404
     assert c.get(u, params={"account_number": "12", "bank_code": "058"}).status_code == 422
     assert c.get("/api/v1/payouts/banks").json() == {"banks": []}
+
+
+def test_duplicate_list_blocked_after_send_unless_allowed(tmp_path):
+    c, rail = make(tmp_path)
+    c.post(URL, json=BODY)
+    c.post(f"{URL}/b1/run")
+    again = dict(BODY, batch_key="b2")
+    r = c.post(URL, json=again)
+    assert r.status_code == 409 and r.json()["detail"].startswith("duplicate-list:")
+    assert c.post(URL, json=dict(again, allow_repeat=True)).status_code == 200
+    assert rail.calls == 2  # nothing was re-sent by uploading
+
+
+def test_duplicate_not_blocked_if_never_sent(tmp_path):
+    c, _ = make(tmp_path)
+    c.post(URL, json=BODY)
+    assert c.post(URL, json=dict(BODY, batch_key="b2")).status_code == 200
+
+
+def test_duplicate_ignores_row_order_and_names(tmp_path):
+    c, _ = make(tmp_path)
+    c.post(URL, json=BODY)
+    c.post(f"{URL}/b1/run")
+    rows = [dict(r, name="X") for r in reversed(BODY["rows"])]
+    assert c.post(URL, json=dict(BODY, batch_key="b2", rows=rows)).status_code == 409
+
+
+def test_same_key_same_count_different_accounts_conflict(tmp_path):
+    c, _ = make(tmp_path)
+    c.post(URL, json=BODY)
+    rows = [dict(BODY["rows"][0], account_number="0123456799"), BODY["rows"][1]]
+    assert c.post(URL, json=dict(BODY, rows=rows)).status_code == 409
