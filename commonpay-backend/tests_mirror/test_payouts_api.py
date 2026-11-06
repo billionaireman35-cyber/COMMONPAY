@@ -102,3 +102,12 @@ def test_verify_flags_mismatch_and_404(tmp_path):
     items = c.post(f"{URL}/b1/verify").json()["items"]
     assert items[0]["status"] == "rejected" and items[0]["detail"] == "name mismatch"
     assert c.post(f"{URL}/nope/verify").status_code == 404
+
+
+def test_resolve_and_banks(tmp_path):
+    c, _ = make(tmp_path)
+    u = "/api/v1/payouts/resolve"
+    assert c.get(u, params={"account_number": "0123456789", "bank_code": "058"}).json() == {"account_name": "ADA OBI"}
+    assert c.get(u, params={"account_number": "0123456799", "bank_code": "058"}).status_code == 404
+    assert c.get(u, params={"account_number": "12", "bank_code": "058"}).status_code == 422
+    assert c.get("/api/v1/payouts/banks").json() == {"banks": []}

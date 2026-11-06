@@ -1,6 +1,12 @@
 import { useState } from "react";
 import CloseTheDay from "./features/close/CloseTheDay";
 import Payouts from "./features/payouts/Payouts";
+import BusinessSummary from "./features/overview/BusinessSummary";
+import Reconciliation from "./features/core/Reconciliation";
+import Checkout from "./features/core/Checkout";
+import Intelligence from "./features/core/Intelligence";
+import Developers from "./features/core/Developers";
+import Transfers from "./features/core/Transfers";
 import {
   Activity,
   ArrowDownLeft,
@@ -151,6 +157,16 @@ function App() {
             <CloseTheDay />
           ) : active === "Salary payouts" ? (
             <Payouts />
+          ) : active === "Payments" ? (
+            <Checkout />
+          ) : active === "Reconciliation" ? (
+            <Reconciliation />
+          ) : active === "Intelligence" ? (
+            <Intelligence />
+          ) : active === "Developers" ? (
+            <Developers />
+          ) : active === "Transfers" ? (
+            <Transfers />
           ) : active === "Overview" ? (
             <>
               <section className="welcome-row">
@@ -173,6 +189,9 @@ function App() {
                 <span className="environment-tag">SETUP</span>
               </section>
 
+              {environment === "Business" ? (
+                <BusinessSummary />
+              ) : (
               <section className="summary-grid">
                 <article className="summary-card">
                   <div className="card-heading">
@@ -196,6 +215,7 @@ function App() {
                   <p>Transaction history will appear here</p>
                 </article>
               </section>
+              )}
 
               <section className="content-grid">
                 <article className="panel activity-panel">

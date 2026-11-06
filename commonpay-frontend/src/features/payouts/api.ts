@@ -54,3 +54,13 @@ export const api = {
   refresh: (key: string) => post<unknown>(`/batches/${key}/refresh`),
   get: (key: string) => request<Detail>(`/batches/${key}`),
 };
+
+export type Bank = { name: string; code: string };
+
+export const lookup = {
+  banks: () => request<{ banks: Bank[] }>("/banks"),
+  resolve: (account_number: string, bank_code: string) =>
+    request<{ account_name: string }>(
+      `/resolve?account_number=${encodeURIComponent(account_number)}&bank_code=${encodeURIComponent(bank_code)}`
+    ),
+};

@@ -94,3 +94,10 @@ class PaystackPayoutRail(PayoutRail):
             if b.get("currency") == currency:
                 return int(b["balance"])
         return 0
+
+    def banks(self):
+        r = self._client.get("/bank", headers=self._headers(),
+                             params={"country": "nigeria", "perPage": 200})
+        r.raise_for_status()
+        rows = [b for b in (r.json().get("data") or []) if b.get("active", True)]
+        return sorted(({"name": b["name"], "code": b["code"]} for b in rows), key=lambda b: b["name"])

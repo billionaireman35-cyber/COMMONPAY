@@ -1,10 +1,11 @@
+import re
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.core.security import require_api_key
-from mirror.payout import InsufficientFunds
+from mirror.payout import AccountNotFound, InsufficientFunds
 
 router = APIRouter(
     prefix="/payouts",
@@ -80,3 +81,27 @@ def verify_batch(key: str, engine=Depends(get_engine)):
     _batch(engine, key)
     engine.verify_names(key)  # resolves names only; never sends
     return {"summary": engine.summary(key), "items": engine.report(key)}
+
+
+@router.get("/banks")
+def banks(engine=Depends(get_engine)):
+    for rail in engine.rails:
+        if hasattr(rail, "banks"):
+            try:
+                return {"banks": rail.banks()}
+            except Exception:
+                continue
+    return {"banks": []}
+
+
+@router.get("/resolve")
+def resolve(account_number: str, bank_code: str, engine=Depends(get_engine)):
+    if not re.fullmatch(r"\d{10}", account_number) or not bank_code:
+        raise HTTPException(status_code=422, detail="Enter a 10-digit account number and choose a bank.")
+    try:
+        name = engine._resolve({"account_number": account_number, "bank_code": bank_code})
+    except AccountNotFound:
+        raise HTTPException(status_code=404, detail="Account not found.")
+    if name is None:
+        raise HTTPException(status_code=503, detail="Could not reach the bank lookup. Try again.")
+    return {"account_name": name}
