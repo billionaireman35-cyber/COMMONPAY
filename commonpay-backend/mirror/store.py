@@ -62,11 +62,8 @@ Table("wallet_accounts", metadata,
 
 
 def _pg_driver():
-    try:
-        import psycopg2  # noqa: F401
-        return "psycopg2"
-    except ImportError:
-        return "pg8000"
+    # Use the explicitly declared pure-Python PostgreSQL driver.
+    return "pg8000"
 
 
 def _resolve_url(path=None):
@@ -113,7 +110,10 @@ class Store:
             url = u.set(query={k: v for k, v in u.query.items() if k not in ("sslmode", "channel_binding")})
             kw["connect_args"] = {"ssl_context": True}
         self.engine = create_engine(url, **kw)
-        metadata.create_all(self.engine)
+        # SQLite initialisation is retained for isolated local/test databases.
+        # PostgreSQL schema changes are exclusively managed by Alembic.
+        if self.engine.dialect.name == "sqlite":
+            metadata.create_all(self.engine)
 
     # --- plumbing ---
     def _one(self, sql, **a):

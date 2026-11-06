@@ -38,7 +38,6 @@ class LockService:
     def __init__(self, store, partner=None):
         self.store = store
         self._partner = partner
-        metadata.create_all(store.engine)
 
     def _partner_or_default(self):
         return self._partner or get_partner(locks_live_enabled())
