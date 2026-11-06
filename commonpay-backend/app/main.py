@@ -9,6 +9,8 @@ from app.api.v1 import (
     intelligence,
     developers,
     reconciliation,
+    locks,
+    payouts,
 )
 
 app = FastAPI(
@@ -37,6 +39,8 @@ app.include_router(webhooks.router, prefix=settings.api_prefix)
 app.include_router(intelligence.router, prefix=settings.api_prefix)
 app.include_router(developers.router, prefix=settings.api_prefix)
 app.include_router(reconciliation.router, prefix=settings.api_prefix)
+app.include_router(locks.router, prefix=settings.api_prefix)
+app.include_router(payouts.router, prefix=settings.api_prefix)
 
 
 @app.get("/")
