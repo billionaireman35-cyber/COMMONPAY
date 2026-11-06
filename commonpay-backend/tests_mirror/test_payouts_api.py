@@ -84,3 +84,21 @@ def test_no_rails_configured_is_503(tmp_path):
 
 def test_requires_api_key():
     assert TestClient(fastapi_app).post(URL, json=BODY).status_code >= 400
+
+
+def test_verify_resolves_names_and_sends_nothing(tmp_path):
+    c, rail = make(tmp_path)
+    c.post(URL, json=BODY)
+    items = c.post(f"{URL}/b1/verify").json()["items"]
+    assert [i["resolved_name"] for i in items] == ["ADA OBI", "TUNDE BELLO"]
+    assert [i["status"] for i in items] == ["pending", "pending"]
+    assert rail.calls == 0
+
+
+def test_verify_flags_mismatch_and_404(tmp_path):
+    c, rail = make(tmp_path)
+    rail.names["0123456789"] = "SOMEONE ELSE"
+    c.post(URL, json=BODY)
+    items = c.post(f"{URL}/b1/verify").json()["items"]
+    assert items[0]["status"] == "rejected" and items[0]["detail"] == "name mismatch"
+    assert c.post(f"{URL}/nope/verify").status_code == 404

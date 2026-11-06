@@ -73,3 +73,10 @@ def get_batch(key: str, engine=Depends(get_engine)):
     b = _batch(engine, key)
     return {"batch_key": key, "currency": b["currency"],
             "summary": engine.summary(key), "items": engine.report(key)}
+
+
+@router.post("/batches/{key}/verify")
+def verify_batch(key: str, engine=Depends(get_engine)):
+    _batch(engine, key)
+    engine.verify_names(key)  # resolves names only; never sends
+    return {"summary": engine.summary(key), "items": engine.report(key)}
