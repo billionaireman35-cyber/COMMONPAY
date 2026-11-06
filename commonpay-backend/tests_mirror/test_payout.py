@@ -53,14 +53,7 @@ def test_failover_on_definite_down():
     assert all(i["provider"] == "b" for i in s.items(s.get_batch("b1")["id"]))
 
 
-def test_ambiguous_goes_unknown_no_retry():
-    a, b = MockRail("a", NAMES, ambiguous=True), MockRail("b", NAMES)
-    s, e = mk([a, b])
-    e.run("b1"); e.run("b1")
-    assert b.calls == 0 and a.calls == 2 or a.calls == 1
-    assert set(st(s).values()) == {"unknown"} or st(s)[2] == "unknown"
-    e.refresh("b1")
-    assert st(s)[1] == "confirmed"
+
 
 
 def test_run_twice_sends_once():
@@ -78,17 +71,7 @@ def test_insufficient_funds_sends_nothing():
     assert a.calls == 0 and set(st(s).values()) == {"pending"}
 
 
-def test_all_down_stays_pending_then_retries():
-    a = MockRail("a", NAMES)
-    s, e = mk([a])
-    e.run("b1")  # names resolve, sent
-    s2, e2 = mk([MockRail("a", NAMES)])
-    e2.rails[0].down = True
-    e2.run("b1")
-    assert set(st(s2).values()) == {"pending"}
-    e2.rails[0].down = False
-    e2.run("b1")
-    assert set(st(s2).values()) == {"submitted"}
+
 
 
 def test_interrupted_send_becomes_unknown_not_resent():
@@ -111,3 +94,36 @@ def test_illegal_transition():
 def test_names_match():
     assert names_match("Ada Obi", "OBI ADA")
     assert not names_match("Ada Obi", "Ada Okafor")
+
+
+def test_ambiguous_goes_unknown_no_retry():
+    a, b = MockRail("a", NAMES, ambiguous=True), MockRail("b", NAMES)
+    s, e = mk([a, b])
+    e.run("b1")
+    e.run("b1")
+    assert a.calls == 2 and b.calls == 0
+    assert st(s) == {1: "unknown", 2: "unknown"}
+    e.refresh("b1")
+    assert st(s) == {1: "confirmed", 2: "confirmed"}
+
+
+def test_names_unresolvable_stays_pending_then_sends():
+    a = MockRail("a", NAMES, down=True)
+    s, e = mk([a])
+    e.run("b1")
+    assert a.calls == 0 and st(s) == {1: "pending", 2: "pending"}
+    a.down = False
+    e.run("b1")
+    assert st(s) == {1: "submitted", 2: "submitted"}
+
+
+def test_rail_down_at_transfer_returns_to_pending_then_sends_once():
+    a = MockRail("a", NAMES)
+    s, e = mk([a])
+    e.verify_names("b1")
+    a.down = True
+    e.run("b1")
+    assert len(a.sent) == 0 and st(s) == {1: "pending", 2: "pending"}
+    a.down = False
+    e.run("b1")
+    assert len(a.sent) == 2 and st(s) == {1: "submitted", 2: "submitted"}
